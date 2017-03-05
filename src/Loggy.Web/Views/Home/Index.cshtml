@@ -1,0 +1,23 @@
+﻿@{ 
+    ViewData["Title"] = "Just log it !";
+}
+
+<div ng-app="loggy.web">
+    <ul>
+        <li><a href="#!/">Home</a></li>
+        <li><a href="#!/admin">Admin</a></li>
+        <li><a href="#!/login">Login</a></li>
+    </ul>
+    <ng-view></ng-view>
+</div>
+
+@section scripts
+{
+    <environment names="Development">
+        <script type="text/javascript" src="~/js/app.js"></script>
+        <script type="text/javascript" src="~/js/services/authenticationService.js"></script>
+    </environment>
+    <environment names="Staging,Production">
+        <script type="text/javascript" src="~/js/app.min.js"></script>
+    </environment>
+}
