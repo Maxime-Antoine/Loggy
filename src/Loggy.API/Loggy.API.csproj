@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp1.1</TargetFramework>
     <PreserveCompilationContext>true</PreserveCompilationContext>
-    <AssemblyName>Loggy.Web</AssemblyName>
+    <AssemblyName>Loggy.API</AssemblyName>
     <OutputType>exe</OutputType>
     <PackageId>Loggy.Web</PackageId>
     <UserSecretsId>aspnet-Yasas.API-20170209104018</UserSecretsId>
@@ -25,16 +25,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="wwwroot\css\Site.css" />
-    <Content Include="wwwroot\js\app.js" />
-    <Content Include="wwwroot\js\services\authenticationService.js" />
-    <Content Include="wwwroot\templates\home.html" />
-    <Content Include="wwwroot\templates\login.html" />
-    <Content Include="wwwroot\templates\admin.html" />
+    <Compile Remove="wwwroot\**" />
+    <Content Remove="wwwroot\**" />
+    <EmbeddedResource Remove="wwwroot\**" />
+    <None Remove="wwwroot\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Update="wwwroot\**\*;web.config">
+    <Content Update="web.config">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
@@ -71,10 +69,6 @@
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.EntityFrameworkCore.Tools.DotNet" Version="1.1.0-*" />
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="1.0.0-msbuild3-final" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <None Include="wwwroot\js\services\authenticationService.js" />
   </ItemGroup>
 
 </Project>

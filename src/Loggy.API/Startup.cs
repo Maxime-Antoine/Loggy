@@ -40,8 +40,6 @@ namespace Loggy.Web
         {
             services.AddMvcCore()
                     .AddJsonFormatters()
-                    .AddViews()
-                    .AddRazorViewEngine()
                     .AddAuthorization();
 
             services.AddDbContext<AppDbContext>(options =>

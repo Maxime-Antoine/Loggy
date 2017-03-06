@@ -242,7 +242,8 @@ ModelManifest.xml
 .fake/
 
 # Manual ignores
-/src/Loggy.Web/Properties/PublishProfiles
-/src/Loggy.Web/wwwroot/lib
+/src/Loggy.API/Properties/PublishProfiles
+/src/Loggy.Web/lib
 *.min.css
 *.min.js
+/src/Loggy.Web/App_Data/PublishProfiles

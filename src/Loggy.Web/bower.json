@@ -1,10 +1,12 @@
 {
-  "name": "YASAS",
-  "private": true,
+  "name": "loggy.web",
+  "private": "true",
+  "description": "",
+  "authors": [
+    "Maxime ANTOINE"
+  ],
   "dependencies": {
-    "bootstrap": "3.3.7",
-    "jQuery": "3.1.1",
-    "angular": "1.6.2",
-    "angular-route": "1.6.2"
+    "react": "v15.4.0",
+    "babel": "v5.8.38"
   }
 }
