@@ -12,7 +12,8 @@
       "commandName": "IISExpress",
       "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SIGNINGKEY": "LoggySuperSecret"
       }
     },
     "Yasas.API": {
@@ -20,8 +21,11 @@
       "launchBrowser": true,
       "launchUrl": "http://localhost:5000",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "URL": "http://localhost:5000/",
+        "SIGNINGKEY": "LoggySuperSecret"
+      },
+      "applicationUrl": "http://localhost:5000"
     }
   }
 }

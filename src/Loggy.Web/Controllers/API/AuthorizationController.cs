@@ -11,6 +11,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Loggy.Web.Models;
+using Loggy.Web.Db;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Loggy.Web.Controllers.API
 {
@@ -20,15 +23,18 @@ namespace Loggy.Web.Controllers.API
         private readonly OpenIddictApplicationManager<OpenIddictApplication> _appManager;
         private readonly SignInManager<AppUser> _signInManager;
         private readonly UserManager<AppUser> _userManager;
+        private readonly AppDbContext _db;
 
         public AuthorizationController(
             OpenIddictApplicationManager<OpenIddictApplication> applicationManager,
             SignInManager<AppUser> signInManager,
-            UserManager<AppUser> userManager)
+            UserManager<AppUser> userManager,
+            AppDbContext db)
         {
             _appManager = applicationManager;
             _signInManager = signInManager;
             _userManager = userManager;
+            _db = db;
         }
 
         [HttpPost("~/connect/token"), Produces("application/json")]
@@ -38,66 +44,103 @@ namespace Loggy.Web.Controllers.API
                "The OpenIddict binder for ASP.NET Core MVC is not registered. " +
                "Make sure services.AddOpenIddict().AddMvcBinders() is correctly called.");
 
-            if (!req.IsPasswordGrantType())
+            if (req.IsPasswordGrantType())
+            {
+                var user = await _userManager.FindByNameAsync(req.Username);
+                if (user == null)
+                {
+                    return BadRequest(new OpenIdConnectResponse
+                    {
+                        Error = OpenIdConnectConstants.Errors.InvalidGrant,
+                        ErrorDescription = "Invalid credentials"
+                    });
+                }
+
+                if (!await _signInManager.CanSignInAsync(user))
+                {
+                    return BadRequest(new OpenIdConnectResponse
+                    {
+                        Error = OpenIdConnectConstants.Errors.InvalidGrant,
+                        ErrorDescription = "User is not allowed to sign in"
+                    });
+                }
+
+                //Check user account is not locked
+                if (_userManager.SupportsUserLockout && await _userManager.IsLockedOutAsync(user))
+                {
+                    return BadRequest(new OpenIdConnectResponse
+                    {
+                        Error = OpenIdConnectConstants.Errors.InvalidGrant,
+                        ErrorDescription = "User is not allowed to sign in"
+                    });
+                }
+
+                if (!await _userManager.CheckPasswordAsync(user, req.Password))
+                {
+                    if (_userManager.SupportsUserLockout)
+                        await _userManager.AccessFailedAsync(user);
+
+                    return BadRequest(new OpenIdConnectResponse
+                    {
+                        Error = OpenIdConnectConstants.Errors.InvalidGrant,
+                        ErrorDescription = "Invalid credentials"
+                    });
+                }
+
+                if (_userManager.SupportsUserLockout)
+                    await _userManager.ResetAccessFailedCountAsync(user);
+
+                // Create a new authentication ticket.
+                var ticket = await _CreateTicketAsync(req, user);
+
+                if (req.Resource != null)
+                    ticket.SetAudiences(new string[] { req.Resource });
+
+                return SignIn(ticket.Principal, ticket.Properties, ticket.AuthenticationScheme);
+            }
+            else if (req.IsRefreshTokenGrantType())
+            {
+                // Retrieve the claims principal stored in the refresh token.
+                var info = await HttpContext.Authentication.GetAuthenticateInfoAsync(OpenIdConnectServerDefaults.AuthenticationScheme);
+
+                // Retrieve the user profile corresponding to the refresh token.
+                var user = await _userManager.GetUserAsync(info.Principal);
+                if (user == null)
+                {
+                    return BadRequest(new OpenIdConnectResponse
+                    {
+                        Error = OpenIdConnectConstants.Errors.InvalidGrant,
+                        ErrorDescription = "The refresh token is no longer valid."
+                    });
+                }
+
+                // Ensure the user is still allowed to sign in.
+                if (!await _signInManager.CanSignInAsync(user))
+                {
+                    return BadRequest(new OpenIdConnectResponse
+                    {
+                        Error = OpenIdConnectConstants.Errors.InvalidGrant,
+                        ErrorDescription = "The user is no longer allowed to sign in."
+                    });
+                }
+
+                // Create a new authentication ticket, but reuse the properties stored
+                // in the refresh token, including the scopes originally granted.
+                var ticket = await _CreateTicketAsync(req, user, info.Properties);
+
+                return SignIn(ticket.Principal, ticket.Properties, ticket.AuthenticationScheme);
+            }
+            else
                 return BadRequest(new OpenIdConnectResponse
                 {
                     Error = OpenIdConnectConstants.Errors.UnsupportedGrantType,
                     ErrorDescription = "Grant type not supported."
                 });
-
-            var user = await _userManager.FindByNameAsync(req.Username);
-            if (user == null)
-            {
-                return BadRequest(new OpenIdConnectResponse
-                {
-                    Error = OpenIdConnectConstants.Errors.InvalidGrant,
-                    ErrorDescription = "Invalid credentials"
-                });
-            }
-
-            if (!await _signInManager.CanSignInAsync(user))
-            {
-                return BadRequest(new OpenIdConnectResponse
-                {
-                    Error = OpenIdConnectConstants.Errors.InvalidGrant,
-                    ErrorDescription = "User is not allowed to sign in"
-                });
-            }
-
-            //Check user account is not locked
-            if (_userManager.SupportsUserLockout && await _userManager.IsLockedOutAsync(user))
-            {
-                return BadRequest(new OpenIdConnectResponse
-                {
-                    Error = OpenIdConnectConstants.Errors.InvalidGrant,
-                    ErrorDescription = "User is not allowed to sign in"
-                });
-            }
-
-            if (!await _userManager.CheckPasswordAsync(user, req.Password))
-            {
-                if (_userManager.SupportsUserLockout)
-                    await _userManager.AccessFailedAsync(user);
-
-                return BadRequest(new OpenIdConnectResponse
-                {
-                    Error = OpenIdConnectConstants.Errors.InvalidGrant,
-                    ErrorDescription = "Invalid credentials"
-                });
-            }
-
-            if (_userManager.SupportsUserLockout)
-                await _userManager.ResetAccessFailedCountAsync(user);
-
-            // Create a new authentication ticket.
-            var ticket = await CreateTicketAsync(req, user);
-
-            return SignIn(ticket.Principal, ticket.Properties, ticket.AuthenticationScheme);
         }
 
-        private async Task<AuthenticationTicket> CreateTicketAsync(
-            OpenIdConnectRequest request, AppUser user,
-            AuthenticationProperties properties = null)
+        private async Task<AuthenticationTicket> _CreateTicketAsync(
+           OpenIdConnectRequest request, AppUser user,
+           AuthenticationProperties properties = null)
         {
             // Create a new ClaimsPrincipal containing the claims that
             // will be used to create an id_token, a token or a code.
@@ -107,14 +150,18 @@ namespace Loggy.Web.Controllers.API
             // To allow OpenIddict to serialize them, you must attach them a destination, that specifies
             // whether they should be included in access tokens, in identity tokens or in both.
 
-            //foreach (var claim in principal.Claims)
-            //{
-            //    // In this sample, every claim is serialized in both the access and the identity tokens.
-            //    // In a real world application, you'd probably want to exclude confidential claims
-            //    // or apply a claims policy based on the scopes requested by the client application.
-            //    claim.SetDestinations(OpenIdConnectConstants.Destinations.AccessToken,
-            //                          OpenIdConnectConstants.Destinations.IdentityToken);
-            //}
+            //Add roles as claim
+            var userWithRoles = _db.Users.Include("Roles").Single(u => u.UserName == user.UserName);
+            if (userWithRoles.Roles.Any())
+            {
+                var identity = principal.Identity as ClaimsIdentity;
+                var roleNames = _db.Roles.Where(r => userWithRoles.Roles.Select(ur => ur.RoleId).Contains(r.Id)).Select(r => r.Name).ToArray();
+
+                foreach (var roleName in roleNames)
+                    identity.AddClaim("role", roleName, new string[] { OpenIdConnectConstants.Destinations.AccessToken, OpenIdConnectConstants.Destinations.IdentityToken });
+
+                principal = new ClaimsPrincipal(identity);
+            }
 
             // Create a new authentication ticket holding the user identity.
             var ticket = new AuthenticationTicket(principal, properties,

@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using Loggy.Web.Db;
+using Loggy.Web.Models;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -6,20 +8,24 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Linq;
+using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
-using Loggy.Web.Db;
-using Loggy.Web.Models;
 
 namespace Loggy.Web
 {
     public class Startup
     {
-        public IConfigurationRoot Configuration { get; set; }
+        public IConfigurationRoot Configuration { get; private set; }
+        public IHostingEnvironment Environment { get; private set; }
 
         public Startup(IHostingEnvironment env)
         {
+            Environment = env;
+
             Configuration = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
@@ -35,7 +41,8 @@ namespace Loggy.Web
             services.AddMvcCore()
                     .AddJsonFormatters()
                     .AddViews()
-                    .AddRazorViewEngine();
+                    .AddRazorViewEngine()
+                    .AddAuthorization();
 
             services.AddDbContext<AppDbContext>(options =>
             {
@@ -47,20 +54,37 @@ namespace Loggy.Web
                     .AddEntityFrameworkStores<AppDbContext>()
                     .AddDefaultTokenProviders();
 
-            services.AddOpenIddict()
-                    .AddEntityFrameworkCoreStores<AppDbContext>()
-                    .AddMvcBinders()
-                    .EnableTokenEndpoint("/connect/token")
-                    .EnableLogoutEndpoint("/connect/logout")
-                    .AllowPasswordFlow()
-                    .AllowRefreshTokenFlow()
-                    //.UseJsonWebTokens()
-                    .AddEphemeralSigningKey() //DEV only
-                    .Configure(config =>
-                    {
-                        config.ApplicationCanDisplayErrors = true;
-                    });
-                    //.DisableHttpsRequirement(); //DEV only
+            var signinKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(Configuration["SIGNINGKEY"]));
+
+            if (Environment.IsDevelopment())
+            {
+                services.AddOpenIddict()
+                        .AddEntityFrameworkCoreStores<AppDbContext>()
+                        .AddMvcBinders()
+                        .EnableTokenEndpoint("/connect/token")
+                        .EnableLogoutEndpoint("/connect/logout")
+                        .AllowPasswordFlow()
+                        .AllowRefreshTokenFlow()
+                        .UseJsonWebTokens()
+                        .AddSigningKey(signinKey)
+                        .Configure(config =>
+                        {
+                            config.ApplicationCanDisplayErrors = true;
+                        })
+                        .DisableHttpsRequirement();
+            }
+            else
+            {
+                services.AddOpenIddict()
+                        .AddEntityFrameworkCoreStores<AppDbContext>()
+                        .AddMvcBinders()
+                        .EnableTokenEndpoint("/connect/token")
+                        .EnableLogoutEndpoint("/connect/logout")
+                        .AllowPasswordFlow()
+                        .AllowRefreshTokenFlow()
+                        .UseJsonWebTokens()
+                        .AddSigningKey(signinKey);
+            }
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -73,9 +97,19 @@ namespace Loggy.Web
             else
                 app.UseExceptionHandler("/Home/Error");
 
-            app.UseIdentity()
-               .UseOAuthValidation()
-               .UseOpenIddict() //needs to be after UseIdentity()
+            app.UseJwtBearerAuthentication(new JwtBearerOptions
+            {
+                AutomaticAuthenticate = true,
+                TokenValidationParameters = new TokenValidationParameters
+                {
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(Configuration["SIGNINGKEY"])),
+                    ValidateIssuer = true,
+                    ValidIssuer = Configuration["URL"],
+                    ValidateAudience = true,
+                    ValidAudience = Configuration["URL"]
+                }
+            })
+               .UseOpenIddict()
                .UseMvcWithDefaultRoute()
                .UseStaticFiles();
 
@@ -96,7 +130,10 @@ namespace Loggy.Web
             var userStore = new UserStore<AppUser>(db);
 
             if (!roleStore.Roles.Any(r => r.Name == "Admin"))
+            {
                 await roleStore.CreateAsync(new IdentityRole() { Name = "Admin", NormalizedName = "ADMIN" });
+                await roleStore.CreateAsync(new IdentityRole() { Name = "User", NormalizedName = "USER" });
+            }
 
             var user = new AppUser
             {
@@ -110,7 +147,7 @@ namespace Loggy.Web
                 SecurityStamp = Guid.NewGuid().ToString("D")
             };
 
-            if(!userStore.Users.Any(u => u.UserName == user.UserName))
+            if (!userStore.Users.Any(u => u.UserName == user.UserName))
             {
                 var hasher = new PasswordHasher<AppUser>();
                 var hashedPassword = hasher.HashPassword(user, "Test123");
@@ -121,8 +158,9 @@ namespace Loggy.Web
                 var userManager = serviceProvider.GetRequiredService<UserManager<AppUser>>();
                 var dbUser = await userManager.FindByNameAsync(user.UserName);
                 await userManager.AddToRoleAsync(dbUser, "Admin");
+                await userManager.AddToRoleAsync(dbUser, "User");
 
-                await userManager.AddClaimAsync(dbUser, new System.Security.Claims.Claim("sub", dbUser.UserName));
+                await userManager.AddClaimAsync(dbUser, new Claim("sub", dbUser.UserName));
             }
 
             await db.SaveChangesAsync();
