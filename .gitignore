@@ -243,7 +243,5 @@ ModelManifest.xml
 
 # Manual ignores
 /src/Loggy.API/Properties/PublishProfiles
-/src/Loggy.Web/lib
-*.min.css
-*.min.js
 /src/Loggy.Web/App_Data/PublishProfiles
+/src/Loggy.Web/dist

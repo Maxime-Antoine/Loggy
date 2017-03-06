@@ -34,7 +34,7 @@ Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "Loggy.Web", "src\Loggy.Web\
 		DefaultWebSiteLanguage = "Visual C#"
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Loggy.API.Tests", "src\Loggy.API.Tests\Loggy.API.Tests.csproj", "{3642843F-93C1-45E5-ACCD-2E030F0DD5EB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Loggy.API.Tests", "src\Loggy.API.Tests\Loggy.API.Tests.csproj", "{3642843F-93C1-45E5-ACCD-2E030F0DD5EB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
