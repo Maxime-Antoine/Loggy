@@ -1,26 +1,28 @@
 {
     "env": {
         "browser": true,
-        "node": true,
         "jquery": true,
-        "commonjs": true,
-        "es6": true
+        "commonjs": true
     },
     "extends": "eslint:recommended",
     "parserOptions": {
         "ecmaFeatures": {
             "experimentalObjectRestSpread": true,
             "jsx": true
-        },
-        "sourceType": "module"
+        }
     },
     "plugins": [
         "react"
     ],
     "rules": {
+        "strict":[
+            "error",
+            "safe"
+        ],
         "indent": [ 
             "error",
-            4
+            4,
+            { "SwitchCase": 1 }
         ],
         "linebreak-style": [
             "error",
@@ -29,10 +31,6 @@
         "quotes": [
             "error",
             "single"
-        ],
-        "jsx-quotes": [
-            "error",
-            "prefer-single"
         ],
         "semi": [
             "error",
@@ -62,6 +60,13 @@
                 "before": false,
                 "after": true
             }
+        ],
+        "jsx-quotes": [
+            "error",
+            "prefer-double"
+        ],
+        "react/jsx-uses-vars": [
+            "error"
         ]
     },
     "globals": {

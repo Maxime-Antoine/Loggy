@@ -19,7 +19,8 @@ var config = {
             'node_modules/bootstrap/dist/css/bootstrap-theme.min.css'
         ],
         js: './src/**/*.js',
-        mainJs: './src/app.js',
+        mainJs: './src/index.js',
+        images: './src/img/*',
         dist: './dist'
     }
 };
@@ -30,7 +31,8 @@ gulp.task('connect', function () {
         root: ['dist'],
         port: config.port,
         base: config.devBaseUrl,
-        livereload: true
+        livereload: true,
+        fallback: 'dist/index.html'
     })
 });
 
@@ -62,6 +64,12 @@ gulp.task('js', function () {
         .pipe(connect.reload());
 });
 
+gulp.task('img', function () {
+    gulp.src(config.paths.images)
+        .pipe(gulp.dest(config.paths.dist + '/img'))
+        .pipe(connect.reload());
+})
+
 gulp.task('watch', function () {
     gulp.watch(config.paths.html, ['html']);
     gulp.watch(config.paths.js, ['js', 'lint']);
@@ -73,4 +81,4 @@ gulp.task('lint', function() {
                .pipe(lint.format());
 });
 
-gulp.task('default', ['html', 'css', 'js', 'open', 'watch', 'lint']);
+gulp.task('default', ['html', 'css', 'img', 'js', 'lint', 'open', 'watch']);
