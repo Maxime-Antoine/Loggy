@@ -8,7 +8,7 @@ var UserActions = {
         //create user
 
         Dispatcher.dispatch({
-            actionType: ActionTypes.USER_LOGIN,
+            actionType: ActionTypes.USER_CREATED,
             user: user
         });
     }
