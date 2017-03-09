@@ -33,8 +33,14 @@ Dispatcher.register(function(action){
             _users = action.initialData.users;
             UserStore.emitChange();
             break;
-        case ActionTypes.USER_CREATED:
+        case ActionTypes.USER_CREATE:
             _users.push(action.user);
+            UserStore.emitChange();
+            break;
+        case ActionTypes.USER_DELETE:
+            _.remove(_users, function(user){
+                return user.id === action.userId;
+            });
             UserStore.emitChange();
             break;
         default:

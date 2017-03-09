@@ -5,11 +5,15 @@ var ActionTypes = require('../constants/actionTypes');
 
 var UserActions = {
     createUser: function(user){
-        //create user
-
         Dispatcher.dispatch({
-            actionType: ActionTypes.USER_CREATED,
+            actionType: ActionTypes.USER_CREATE,
             user: user
+        });
+    },
+    deleteUser: function(id){
+        Dispatcher.dispatch({
+            actionType: ActionTypes.USER_DELETE,
+            userId: id
         });
     }
 };
