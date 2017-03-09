@@ -5,7 +5,7 @@ var Route = require('react-router').Route;
 var IndexRoute = require('react-router').IndexRoute;
 
 var App = require('./components/app');
-var HomePage = require('./components/homePage');
+var HomePage = require('./components/home/homePage');
 var AboutPage = require('./components/about/aboutPage');
 var NotFoundPage = require('./components/notFoundPage');
 
