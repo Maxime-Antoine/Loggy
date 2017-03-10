@@ -15,6 +15,12 @@ var UserActions = {
             actionType: ActionTypes.USER_DELETE,
             userId: id
         });
+    },
+    updateUser: function(updatedUser){
+        Dispatcher.dispatch({
+            actionType: ActionTypes.USER_UPDATE,
+            updatedUser: updatedUser
+        });
     }
 };
 
